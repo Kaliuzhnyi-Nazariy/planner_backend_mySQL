@@ -1,21 +1,11 @@
-const db = require("../db.config");
+const db = require("../db.config.js");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const { errorHandling, ctrlWrapper } = require("../helpers");
 
 const { SECRET_KEY } = process.env;
 
-const userProf = ({ insertId }) => {
-  const q_ret_profile = "select username, email from users where id = ?";
-
-  return new Promise((resolve, reject) => {
-    db.query(q_ret_profile, insertId, (err, data) => {
-      if (err) return reject(err);
-      return resolve(data);
-    });
-  });
-};
-
-const register = async (req, res) => {
+const register = async (req, res, next) => {
   const q = "insert into users (username, email, password) values (?, ?, ?)";
 
   const { username, email, password } = req.body;
@@ -23,13 +13,15 @@ const register = async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, 10);
 
   db.query(q, [username, email, hashedPassword], async (err, data) => {
-    if (err) return res.status(409).json(err);
+    if (err) return next(errorHandling(409));
 
     const payload = {
       id: data.insertId,
     };
 
     const token = jwt.sign(payload, SECRET_KEY, { expiresIn: "23h" });
+
+    console.log(token);
 
     const q_insert_token = "update users set token = ? where id = ?";
 
@@ -44,7 +36,7 @@ const register = async (req, res) => {
   });
 };
 
-const login = async (req, res) => {
+const login = async (req, res, next) => {
   const q = "SELECT * from users where email = ?";
   const q_new_token = "update users set token = ? where id = ?";
 
@@ -52,7 +44,8 @@ const login = async (req, res) => {
 
   db.query(q, email, async (err, data) => {
     if (err) return res.status(404).json(err);
-    const comparedPassword = await bcrypt.compare(password, data[0].password);
+    if (data.length === 0) return next(errorHandling(404));
+    const comparedPassword = await bcrypt.compare(password, data[0]?.password);
     if (!comparedPassword) return new Error();
 
     const payload = {
@@ -82,4 +75,8 @@ const logout = (req, res) => {
   });
 };
 
-module.exports = { register, login, logout };
+module.exports = {
+  register: ctrlWrapper(register),
+  login: ctrlWrapper(login),
+  logout: ctrlWrapper(logout),
+};
