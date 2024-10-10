@@ -7,17 +7,13 @@ const { SECRET_KEY } = process.env;
 const authenticate = async (req, res, next) => {
   const { authorization = "" } = req.headers;
   const [bearer, token] = authorization.split(" ");
-  if (bearer !== "Bearer") {
+  if (bearer !== "Bearer" || !token) {
     next(401, "Unauthorized");
   }
 
   try {
     const { id } = jwt.verify(token, SECRET_KEY);
     const q = "SELECT id, username, email from users where id = ?";
-    // const user = await db.query(q, id, (err, data) => {
-    //   if (err) return errorHandling(500, "Something went wrong!");
-    //   return data;
-    // });
     const user = await new Promise((resolve, reject) => {
       db.query(q, id, (err, data) => {
         if (err) return reject(errorHandling(500, "Something went wrong!"));
