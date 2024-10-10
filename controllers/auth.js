@@ -13,7 +13,7 @@ const register = async (req, res, next) => {
   const hashedPassword = await bcrypt.hash(password, 10);
 
   db.query(q, [username, email, hashedPassword], async (err, data) => {
-    if (err) return next(errorHandling(409));
+    if (err) return next(errorHandling(409, "This email is already in use!"));
 
     const payload = {
       id: data.insertId,
@@ -21,12 +21,10 @@ const register = async (req, res, next) => {
 
     const token = jwt.sign(payload, SECRET_KEY, { expiresIn: "23h" });
 
-    console.log(token);
-
     const q_insert_token = "update users set token = ? where id = ?";
 
     db.query(q_insert_token, [token, data.insertId], (err, data) => {
-      if (err) return res.status(409).json(err);
+      if (err) return res.status(400).json(err);
       return res.json({
         username,
         email,
@@ -43,10 +41,11 @@ const login = async (req, res, next) => {
   const { email, password } = req.body;
 
   db.query(q, email, async (err, data) => {
-    if (err) return res.status(404).json(err);
+    if (err) return res.status(400).json(err);
     if (data.length === 0) return next(errorHandling(404));
     const comparedPassword = await bcrypt.compare(password, data[0]?.password);
-    if (!comparedPassword) return new Error();
+    if (!comparedPassword)
+      return next(errorHandling(400, "Email or password do not match!"));
 
     const payload = {
       id: data[0].id,
@@ -67,11 +66,13 @@ const login = async (req, res, next) => {
 const logout = (req, res) => {
   const q = "update users set token = '' where id = ?";
 
-  // id will be received from middleware authenticate
+  const { id } = req.user;
+  console.log(id);
 
-  db.query(q, 49, (err, data) => {
+  db.query(q, id, (err, data) => {
+    console.log(q);
     if (err) return res.status(409).json(err);
-    return res.json(data);
+    return res.json("Logged out successfuly!");
   });
 };
 
