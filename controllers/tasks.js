@@ -1,7 +1,7 @@
 const db = require("../db.config");
-const { ctrlWrapper } = require("../helpers");
+const { ctrlWrapper, errorHandling } = require("../helpers");
 
-const addTask = (req, res) => {
+const addTask = async (req, res) => {
   const q =
     "INSERT INTO tasks (name, taskText, ownerId, date) values (?, ?, ?, ?)";
 
@@ -9,9 +9,21 @@ const addTask = (req, res) => {
 
   const { id } = req.user;
 
-  db.query(q, [name, taskText, id, "2024-10-08"], (err, data) => {
+  db.query(q, [name, taskText, id, "2024-10-08"], async (err, data) => {
     if (err) return res.json(err);
-    return res.json(data);
+
+    const q_new_task =
+      "select t.id, t.name, t.taskText, DATE(t.date) as date, t.ownerId, u.username, u.email from tasks as t inner join users as u on u.id = t.ownerId where t.id = ? ";
+
+    const result = await new Promise((res, rej) => {
+      db.query(q_new_task, data.insertId, (err, data) => {
+        if (err) return rej(err);
+        console.log(data);
+        return res(data);
+      });
+    });
+
+    return res.json(result);
   });
 };
 
@@ -41,7 +53,7 @@ const getOneTask = (req, res) => {
   });
 };
 
-const deleteTask = (req, res) => {
+const deleteTask = async (req, res, next) => {
   const q =
     "DELETE t FROM tasks t INNER JOIN users u ON u.id = t.ownerId WHERE t.id = ? AND u.id = ?";
 
@@ -49,9 +61,21 @@ const deleteTask = (req, res) => {
 
   const { id } = req.user;
 
+  const q_find_by_id = "select * from tasks where id = ?";
+
+  const isIdExist = await new Promise((res, rej) => {
+    db.query(q_find_by_id, [taskId], (err, data) => {
+      if (err) return rej(errorHandling(404));
+      if (data.length === 0) return res(false);
+      return res(true);
+    });
+  });
+
+  if (!isIdExist) return next(errorHandling(404, "Task not found!"));
+
   db.query(q, [taskId, id], (err, data) => {
     if (err) return res.json(err);
-    return res.json(data);
+    return res.json({ message: "Deleted successfuly!" });
   });
 };
 
