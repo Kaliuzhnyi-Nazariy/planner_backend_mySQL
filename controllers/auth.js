@@ -67,10 +67,8 @@ const logout = (req, res) => {
   const q = "update users set token = '' where id = ?";
 
   const { id } = req.user;
-  console.log(id);
 
   db.query(q, id, (err, data) => {
-    console.log(q);
     if (err) return res.status(409).json(err);
     return res.json("Logged out successfuly!");
   });

@@ -1,6 +1,4 @@
 require("dotenv").config();
 const app = require("./app");
 
-app.listen(3018, () => {
-  console.log("connected");
-});
+app.listen(3018, () => {});

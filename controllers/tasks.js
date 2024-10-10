@@ -18,7 +18,6 @@ const addTask = async (req, res) => {
     const result = await new Promise((res, rej) => {
       db.query(q_new_task, data.insertId, (err, data) => {
         if (err) return rej(err);
-        console.log(data);
         return res(data);
       });
     });
